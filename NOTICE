@@ -1,0 +1,34 @@
+VirtIOForge for Windows
+Copyright (c) Emmo Emminghaus mo2000 at mo2000 dot de
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See the LICENSE file for the full text.
+
+--------------------------------------------------------------------------------
+Microsoft components
+--------------------------------------------------------------------------------
+
+VirtIOForge contains no Microsoft files. It works on Windows installation media
+provided by the user and on the running Windows. Those files remain Microsoft
+software under Microsoft's license terms. VirtIOForge is not affiliated with or
+endorsed by Microsoft. Windows and Windows Server are trademarks of the
+Microsoft group of companies.
+
+--------------------------------------------------------------------------------
+virtio-win
+--------------------------------------------------------------------------------
+
+VirtIOForge contains no virtio-win files. The virtio-win ISO (drivers and guest
+tools) is downloaded from the Fedora project or provided by the user; its
+contents remain under their own license terms. VirtIOForge is not affiliated
+with or endorsed by Red Hat or the Fedora Project. Red Hat is a trademark of
+Red Hat, Inc.
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+None. The scripts use only components that ship with Windows (PowerShell 5.1,
+DISM, pnputil, reagentc, certutil, IMAPI2).
