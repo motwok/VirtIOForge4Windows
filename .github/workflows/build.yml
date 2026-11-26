@@ -1,0 +1,153 @@
+name: Build
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# one release at a time: tag, notes and assets belong to one commit
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse, ASCII and PSScriptAnalyzer
+        shell: powershell
+        run: |
+          $fail = $false
+          $files = Get-ChildItem -Recurse -Include *.ps1, *.psm1, *.psd1 -File
+          foreach ($f in $files) {
+            $err = $null
+            [void][Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$err)
+            if ($err) { $err | ForEach-Object { "::error file=$($f.FullName),line=$($_.Extent.StartLineNumber)::$($_.Message)" }; $fail = $true }
+            if ([regex]::IsMatch([IO.File]::ReadAllText($f.FullName), '[^\x00-\x7F]')) { "::error file=$($f.FullName)::raw non-ASCII character"; $fail = $true }
+          }
+          $r = Invoke-ScriptAnalyzer -Path . -Recurse -Severity Error
+          if ($r) { $r | ForEach-Object { "::error file=$($_.ScriptPath),line=$($_.Line)::$($_.RuleName): $($_.Message)" }; $fail = $true }
+          if ($fail) { exit 1 }
+
+  test:
+    name: Tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Pester
+        shell: powershell
+        run: |
+          if (-not (Get-ChildItem tests -Recurse -Filter *.Tests.ps1 -ErrorAction SilentlyContinue)) { 'No tests yet.' >> $env:GITHUB_STEP_SUMMARY; exit 0 }
+          Install-Module Pester -RequiredVersion 6.2.0 -Force -SkipPublisherCheck -Scope CurrentUser
+          # one PowerShell process per test file, coverage merged (see tests/Invoke-Tests.ps1)
+          $r = & tests/Invoke-Tests.ps1
+          "Tests: $($r.Passed) passed, $($r.Failed) failed. Coverage: $($r.Coverage) %" >> $env:GITHUB_STEP_SUMMARY
+          $r.Missed | ForEach-Object { "::error file=$($_.File),line=$($_.Line)::not covered: $($_.Command)" }
+          if (-not $r.Ok) { exit 1 }
+          # coverage is kept at 100 %
+          if ($r.Coverage -lt 100) { "::error::Coverage $($r.Coverage) % is below 100 %"; exit 1 }
+
+  package:
+    name: Package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        shell: powershell
+        run: build/build-package.ps1 -Version 0.0.1 -Out dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package
+          path: dist
+
+  release:
+    name: Release
+    if: github.event_name != 'pull_request'
+    needs: [lint, test, package]
+    # release-drafter resolves its config path with backslashes on Windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      release: ${{ steps.changed.outputs.release }}
+      version: ${{ steps.drafter.outputs.resolved_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Product changed since last release?
+        id: changed
+        run: |
+          last=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ ! -d src/scripts ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "No scripts yet, no release." >> "$GITHUB_STEP_SUMMARY"
+          elif [ -z "$last" ] || ! git diff --quiet "$last" HEAD -- src build; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "No product change since $last, no release." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Next version
+        id: drafter
+        if: steps.changed.outputs.release == 'true'
+        uses: release-drafter/release-drafter@d1a19e60e81a7e650d00a7de9277f87e439117ea # v7.11.0
+        with:
+          config-name: release-drafter.yml
+          commitish: ${{ github.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  assets:
+    name: Release assets
+    needs: release
+    if: needs.release.outputs.release == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        shell: powershell
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          if (-not $env:VERSION) { 'no version resolved'; exit 1 }
+          build/build-package.ps1 -Version $env:VERSION -Out dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: dist
+
+  publish:
+    name: Publish
+    needs: [release, assets]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: dist
+      - name: Publish release
+        uses: release-drafter/release-drafter@d1a19e60e81a7e650d00a7de9277f87e439117ea # v7.11.0
+        with:
+          config-name: release-drafter.yml
+          commitish: ${{ github.sha }}
+          version: ${{ needs.release.outputs.version }}
+          publish: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Attach assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: gh release upload "v$VERSION" dist/* --clobber --repo "$GITHUB_REPOSITORY"

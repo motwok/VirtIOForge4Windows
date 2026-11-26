@@ -1,0 +1,100 @@
+name: Bug report
+description: Report something that doesn't work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill in the fields below;
+        the details make it much easier to reproduce and fix. Remove host names,
+        IP addresses or other details you do not want to make public.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you start
+      options:
+        - label: I searched existing issues and this isn't a duplicate.
+          required: true
+        - label: This is **not** a security vulnerability (those go through [SECURITY.md](https://github.com/motwok/VirtIOForge4Windows/security/advisories/new), not a public issue).
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Prepare a Windows ISO
+        - Add drivers to a running Windows
+        - Update drivers in a running Windows
+        - Other (describe above)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: VirtIOForge version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: virtio
+    attributes:
+      label: virtio-win version and source
+      description: Version of the virtio-win ISO and where it came from (download stable/latest/archive, folder, file).
+      placeholder: e.g. 0.1.xxx, download stable
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version, build and edition
+      description: Of the ISO (`Get-WindowsImage`) or of the running Windows (`winver`).
+      placeholder: e.g. Windows Server 2025 Datacenter (Server Core), 10.0.26100
+    validations:
+      required: true
+
+  - type: input
+    id: host
+    attributes:
+      label: Hypervisor
+      description: QEMU / libvirt version, machine type, disk bus (virtio-blk, virtio-scsi, SATA).
+      placeholder: e.g. QEMU 9.2, libvirt 11.0, q35, virtio-scsi
+    validations:
+      required: false
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Output
+      description: The relevant part of the console output or log.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Even rough steps help.
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Screenshots, anything else.
+    validations:
+      required: false
