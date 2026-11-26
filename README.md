@@ -3,7 +3,7 @@
   <img align="right" src="assets/logo-header.svg" alt="VirtIOForge logo" width="140">
 </picture>
 
-# VirtIOForge for Windows
+<h1>VirtIOForge for Windows</h1>
 
 [![Build](https://github.com/motwok/VirtIOForge4Windows/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/motwok/VirtIOForge4Windows/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/motwok/VirtIOForge4Windows)](https://github.com/motwok/VirtIOForge4Windows/releases/latest)
