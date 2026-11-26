@@ -1,0 +1,11 @@
+# never commit Windows or virtio-win images and binaries
+*.iso
+*.wim
+*.esd
+*.cab
+*.msu
+*.exe
+*.msi
+# build output
+dist/
+out/
